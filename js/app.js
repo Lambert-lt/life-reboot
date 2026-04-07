@@ -168,7 +168,7 @@ function renderCheckin() {
     const rate = DIMS.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / DIMS.length;
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
     saveDay(t, dayData);
-    LCSync.uploadSingle(dayData);
+    FBSync.uploadSingle(dayData);
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
   };
 }
@@ -511,43 +511,63 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
   };
 
-  // LeanCloud sync settings
-  const lcCfg = LCSync.getConfig();
- document.getElementById('lc-app-id').value = lcCfg.appId;
-  document.getElementById('lc-app-key').value = lcCfg.appKey;
-  document.getElementById('lc-server-url').value = lcCfg.serverURL;
-  document.getElementById('lc-save').onclick = () => {
-    localStorage.setItem('lc_app_id', document.getElementById('lc-app-id').value.trim());
-    localStorage.setItem('lc_app_key', document.getElementById('lc-app-key').value.trim());
-    localStorage.setItem('lc_server_url', document.getElementById('lc-server-url').value.trim());
+  // Firebase sync settings
+  const fbCfg = FBSync.getConfig();
+  document.getElementById('fb-api-key').value = fbCfg.apiKey || '';
+  document.getElementById('fb-project-id').value = fbCfg.projectId || '';
+  document.getElementById('fb-app-id').value = fbCfg.appId || '';
+  document.getElementById('fb-auth-domain').value = fbCfg.authDomain || '';
+  document.getElementById('fb-storage-bucket').value = fbCfg.storageBucket || '';
+  document.getElementById('fb-sender-id').value = fbCfg.messagingSenderId || '';
+  document.getElementById('fb-user-id').value = FBSync.getUserId();
+  document.getElementById('fb-copy-uid').onclick = () => {
+    navigator.clipboard.writeText(FBSync.getUserId()).then(() => showToast('已复制 ✅'));
+  };
+  document.getElementById('fb-set-uid').onclick = () => {
+    const newUid = document.getElementById('fb-user-id-edit').value.trim();
+    if (!newUid) { showToast('请输入用户 ID'); return; }
+    FBSync.setUserId(newUid);
+    document.getElementById('fb-user-id').value = newUid;
+    document.getElementById('fb-user-id-edit').value = '';
+    showToast('用户 ID 已切换 ✅');
+  };
+  document.getElementById('fb-save').onclick = () => {
+    FBSync.saveConfig({
+      apiKey: document.getElementById('fb-api-key').value.trim(),
+      projectId: document.getElementById('fb-project-id').value.trim(),
+      appId: document.getElementById('fb-app-id').value.trim(),
+      authDomain: document.getElementById('fb-auth-domain').value.trim(),
+      storageBucket: document.getElementById('fb-storage-bucket').value.trim(),
+      messagingSenderId: document.getElementById('fb-sender-id').value.trim(),
+    });
     showToast('配置已保存 ✅');
-    LCSync.updateSyncStatus();
+    FBSync.updateSyncStatus();
   };
-  document.getElementById('lc-test').onclick = async () => {
-    const statusEl = document.getElementById('lc-status');
+  document.getElementById('fb-test').onclick = async () => {
+    const statusEl = document.getElementById('fb-status');
     statusEl.textContent = '测试中...';
-    const r = await LCSync.testConnection();
+    const r = await FBSync.testConnection();
     statusEl.textContent = r.msg;
-    LCSync.updateSyncStatus();
+    FBSync.updateSyncStatus();
   };
-  document.getElementById('lc-sync-btn').onclick = async () => {
-    const prog = document.getElementById('lc-sync-progress');
+  document.getElementById('fb-sync-btn').onclick = async () => {
+    const prog = document.getElementById('fb-sync-progress');
     prog.style.display = 'block';
-    document.getElementById('lc-sync-btn').disabled = true;
-    await LCSync.syncAll(msg => prog.textContent = msg);
-    document.getElementById('lc-sync-btn').disabled = false;
+    document.getElementById('fb-sync-btn').disabled = true;
+    await FBSync.syncAll(msg => prog.textContent = msg);
+    document.getElementById('fb-sync-btn').disabled = false;
     renderCheckin();
   };
   document.getElementById('fab-sync')?.addEventListener('click', async () => {
-    const cfg = LCSync.getConfig();
-    if (!cfg.appId || !cfg.appKey) { showToast('请先配置云同步'); return; }
+    const cfg = FBSync.getConfig();
+    if (!cfg.apiKey || !cfg.projectId) { showToast('请先配置云同步'); return; }
     showToast('同步中...');
-    await LCSync.syncAll(msg => {});
+    await FBSync.syncAll(msg => {});
     showToast('同步完成 ✅');
     renderCheckin();
   });
 
-  LCSync.updateSyncStatus();
+  FBSync.updateSyncStatus();
   document.getElementById('checkin-date').addEventListener('change', (e) => {
     checkinDate = e.target.value || null;
     renderCheckin();
