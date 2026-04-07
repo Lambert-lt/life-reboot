@@ -17,15 +17,17 @@
 
   <!-- Page: Checkin -->
   <div class="page active" id="page-checkin">
+    <div class="insight-card" id="insight-card"></div>
+    <div class="date-picker-row">
+      <label>📅</label>
+      <input type="date" id="checkin-date" class="date-picker">
+      <span id="date-hint" style="font-size:12px;color:var(--text2)"></span>
+    </div>
     <div id="dim-cards"></div>
     <div style="margin:8px 0 4px;font-size:13px;color:var(--text2)" id="completion-text">完成率 0%</div>
     <div class="completion-bar"><div class="completion-fill" id="completion-fill" style="width:0%"></div></div>
     <div class="submit-section">
       <button class="submit-btn" id="submit-btn">提交今日打卡</button>
-      <div class="export-row">
-        <button class="export-btn" id="export-json">导出 JSON</button>
-        <button class="export-btn" id="export-csv">导出 CSV</button>
-      </div>
     </div>
   </div>
 
@@ -34,16 +36,47 @@
     <div id="board-content"><div class="skeleton-card">加载中...</div></div>
   </div>
 
-  <!-- Page: Stats -->
-  <div class="page" id="page-stats">
-    <div id="stats-content"><div class="skeleton-card">加载中...</div></div>
+  <!-- Page: Review -->
+  <div class="page" id="page-review">
+    <div id="review-content"><div class="skeleton-card">加载中...</div></div>
+  </div>
+
+  <!-- Page: Mine -->
+  <div class="page" id="page-mine">
+    <div class="mine-menu">
+      <button class="mine-btn" data-sub="stats"><span class="mine-icon">📈</span>数据统计</button>
+      <button class="mine-btn" data-sub="planning"><span class="mine-icon">🎯</span>周期规划</button>
+      <button class="mine-btn" data-sub="export"><span class="mine-icon">📤</span>导出数据</button>
+      <button class="mine-btn" data-sub="about"><span class="mine-icon">ℹ️</span>关于</button>
+    </div>
+    <!-- Sub pages -->
+    <div id="sub-stats" class="sub-page"><div id="stats-content"><div class="skeleton-card">加载中...</div></div></div>
+    <div id="sub-planning" class="sub-page"><div id="planning-content"><div class="skeleton-card">加载中...</div></div></div>
+    <div id="sub-export" class="sub-page">
+      <div class="skeleton-card">
+        <div style="font-weight:700;margin-bottom:16px">导出数据</div>
+        <div class="export-row" style="margin-top:0">
+          <button class="export-btn" id="export-json">导出 JSON</button>
+          <button class="export-btn" id="export-csv">导出 CSV</button>
+        </div>
+      </div>
+    </div>
+    <div id="sub-about" class="sub-page">
+      <div class="skeleton-card">
+        <div style="font-weight:700;font-size:18px;margin-bottom:8px">🏗️ 人生重启系统</div>
+        <div style="color:var(--text2);font-size:13px">v2.0 · Phase 3+4</div>
+        <div style="color:var(--text2);font-size:13px;margin-top:8px">基于易命二十九术的每日打卡系统</div>
+        <div style="color:var(--text2);font-size:13px;margin-top:4px">每10天一个周期，8维度全方位成长</div>
+      </div>
+    </div>
   </div>
 
   <!-- Bottom Nav -->
   <nav class="bottom-nav">
-    <button class="nav-btn active" data-page="checkin"><span class="nav-icon">📋</span>今日打卡</button>
-    <button class="nav-btn" data-page="board"><span class="nav-icon">📊</span>周期看板</button>
-    <button class="nav-btn" data-page="stats"><span class="nav-icon">📈</span>数据统计</button>
+    <button class="nav-btn active" data-page="checkin"><span class="nav-icon">📋</span>打卡</button>
+    <button class="nav-btn" data-page="board"><span class="nav-icon">📊</span>看板</button>
+    <button class="nav-btn" data-page="review"><span class="nav-icon">📝</span>复盘</button>
+    <button class="nav-btn" data-page="mine"><span class="nav-icon">⚙️</span>我的</button>
   </nav>
 
   <div class="toast" id="toast"></div>

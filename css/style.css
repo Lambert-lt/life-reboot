@@ -222,7 +222,8 @@ body {
   background-clip: text;
   margin-bottom: 4px;
 }
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-grid:has(> :nth-child(3)) { grid-template-columns: 1fr 1fr 1fr; }
 
 /* Toast */
 .toast {
@@ -244,6 +245,111 @@ body {
   box-shadow: 0 8px 32px rgba(0,0,0,.4);
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Insight Card */
+.insight-card {
+  background: linear-gradient(135deg, rgba(108,140,255,.1), rgba(167,139,250,.1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text2);
+  box-shadow: var(--shadow);
+}
+
+/* Date Picker */
+.date-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+.date-picker {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.date-picker:focus { outline: none; border-color: var(--accent); }
+
+/* Trend Chart */
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  padding-top: 20px;
+}
+.trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.trend-bar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--accent), rgba(167,139,250,.4));
+  border-radius: 6px 6px 2px 2px;
+  min-height: 4px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transition: height .4s ease;
+}
+.trend-label {
+  font-size: 10px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+/* Mine Page */
+.mine-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity .2s;
+}
+.mine-menu.hidden { display: none; }
+.mine-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+  box-shadow: var(--shadow);
+}
+.mine-btn:active { background: var(--card-hover); transform: scale(0.98); }
+.mine-icon { font-size: 22px; }
+.sub-page { display: none; }
+.sub-page.active { display: block; }
+.sub-page .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
 
 @media (min-width: 480px) {
   body { max-width: 440px; margin: 0 auto; }
