@@ -127,14 +127,17 @@ function renderCheckin() {
   container.innerHTML = '';
   const existing = loadDay(t) || {};
 
+  const planData = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
   DIMS.forEach(dim => {
     const card = document.createElement('div');
     card.className = 'dim-card';
     const dimData = existing.dimensions?.[dim.key] || {};
     const curStatus = dimData.status || '';
+    const planText = planData[dim.key] || '';
 
     card.innerHTML = `
       <div class="dim-header"><span class="dim-emoji">${dim.emoji}</span>${dim.name}</div>
+      ${planText ? `<div class="dim-plan">🎯 ${planText}</div>` : ''}
       <div class="status-row">
         ${STATUS.map(s => `<button class="status-btn ${curStatus === s.key ? s.cls : ''}" data-dim="${dim.key}" data-status="${s.key}">${s.label}</button>`).join('')}
       </div>
