@@ -205,7 +205,7 @@ function switchPage(name) {
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
   renderCheckin();
   document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => switchPage(b.dataset.page)));
   document.getElementById('export-json').onclick = exportJSON;
