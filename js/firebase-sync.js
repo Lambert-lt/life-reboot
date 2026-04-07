@@ -4,7 +4,17 @@ const FBSync = (() => {
   let initialized = false;
 
   function getConfig() {
-    return JSON.parse(localStorage.getItem('firebase_config') || '{}');
+    const saved = JSON.parse(localStorage.getItem('firebase_config') || '{}');
+    // 默认配置（Lambert's Firebase）
+    const defaults = {
+      apiKey: 'AIzaSyAU3u8sV0F0ZBEGFesPzoG3QloWppPQSg4',
+      authDomain: 'life-reboot-c1f5d.firebaseapp.com',
+      projectId: 'life-reboot-c1f5d',
+      storageBucket: 'life-reboot-c1f5d.firebasestorage.app',
+      messagingSenderId: '1034839704184',
+      appId: '1:1034839704184:web:3656a9818272fc0c74238d',
+    };
+    return saved.apiKey ? saved : defaults;
   }
 
   function saveConfig(cfg) {
