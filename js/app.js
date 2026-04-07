@@ -127,13 +127,18 @@ function renderCheckin() {
   container.innerHTML = '';
   const existing = loadDay(t) || {};
 
-  const planData = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
+  const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
+  // New format: { focusDims, goals }; old format: { health: '...', ... }
+  const isOldPlan = planRaw && !Array.isArray(planRaw.focusDims);
+  const focusDims = isOldPlan ? DIMS.map(d => d.key) : (planRaw.focusDims || []);
+  const planGoals = isOldPlan ? planRaw : (planRaw.goals || {});
   DIMS.forEach(dim => {
     const card = document.createElement('div');
     card.className = 'dim-card';
     const dimData = existing.dimensions?.[dim.key] || {};
     const curStatus = dimData.status || '';
-    const planText = planData[dim.key] || '';
+    const planText = (isOldPlan ? planRaw[dim.key] : (focusDims.includes(dim.key) ? planGoals[dim.key] : '')) || '';
+    if (!isOldPlan && !focusDims.includes(dim.key) && !planRaw[dim.key]) continue;
 
     card.innerHTML = `
       <div class="dim-header"><span class="dim-emoji">${dim.emoji}</span>${dim.name}</div>
@@ -322,22 +327,67 @@ function renderPlanning() {
   const t = today();
   const info = getCycleInfo(t);
   const saved = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || 'null');
+  // Backward compat: old format has no focusDims
+  const isOld = saved && !Array.isArray(saved.focusDims);
+  let focusDims = isOld ? DIMS.map(d => d.key) : (saved?.focusDims || []);
+  const goals = saved?.goals || (isOld ? (() => { const g = {}; DIMS.forEach(d => { if (saved?.[d.key]) g[d.key] = saved[d.key]; }); return g; })() : {});
 
   container.innerHTML = `<div class="skeleton-card" style="text-align:left">
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 周期规划 · ${info.cycle}</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">第${info.cycleDay}/10天</div>
-    ${DIMS.map(d => `<div style="margin-bottom:12px"><label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:18px">${d.emoji}</span>${d.name}<span style="margin-left:auto;font-size:11px;color:var(--text2)">最多3个目标，每行一个</span></label><textarea class="note-input plan-input" data-dim="${d.key}" rows="2" placeholder="本周期目标/任务...">${saved?.[d.key] || ''}</textarea></div>`).join('')}
+    <div style="font-size:13px;color:var(--text2);margin-bottom:4px">第${info.cycleDay}/10天</div>
+    <div style="font-size:13px;color:var(--accent);margin-bottom:12px">选择最多3个重点维度，为每个维度设定目标</div>
+    ${DIMS.map(d => {
+      const checked = focusDims.includes(d.key);
+      return `<div class="plan-dim-row" data-dim="${d.key}" style="margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:var(--card-bg);border-radius:10px;border:2px solid ${checked ? 'var(--accent)' : 'var(--border)'};transition:border-color .2s">
+          <input type="checkbox" class="plan-cb" data-dim="${d.key}" ${checked ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent)">
+          <span style="font-size:18px">${d.emoji}</span>
+          <span style="font-size:14px;font-weight:600">${d.name}</span>
+        </label>
+        ${checked ? `<textarea class="note-input plan-goal" data-dim="${d.key}" rows="2" placeholder="最多3个目标，每行一个..." style="margin-top:6px">${goals[d.key] || ''}</textarea>` : ''}
+      </div>`;
+    }).join('')}
     <button class="submit-btn" id="save-plan" style="font-size:14px;padding:12px">保存规划</button>
   </div>`;
 
+  // Checkbox toggle
+  container.querySelectorAll('.plan-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checkedDims = [...container.querySelectorAll('.plan-cb:checked')].map(c => c.dataset.dim);
+      if (checkedDims.length > 3) {
+        cb.checked = false;
+        showToast('最多选择3个维度');
+        return;
+      }
+      const row = cb.closest('.plan-dim-row');
+      const dim = cb.dataset.dim;
+      if (cb.checked) {
+        row.querySelector('label').style.borderColor = 'var(--accent)';
+        const ta = document.createElement('textarea');
+        ta.className = 'note-input plan-goal';
+        ta.dataset.dim = dim;
+        ta.rows = 2;
+        ta.placeholder = '最多3个目标，每行一个...';
+        ta.style.marginTop = '6px';
+        row.appendChild(ta);
+      } else {
+        row.querySelector('label').style.borderColor = 'var(--border)';
+        const ta = row.querySelector('.plan-goal');
+        if (ta) ta.remove();
+      }
+    });
+  });
+
   document.getElementById('save-plan').onclick = () => {
-    const plan = {};
+    const checkedDims = [...container.querySelectorAll('.plan-cb:checked')].map(c => c.dataset.dim);
+    const goals = {};
     let truncated = false;
-    document.querySelectorAll('.plan-input').forEach(el => {
+    container.querySelectorAll('.plan-goal').forEach(el => {
       const lines = el.value.split('\n').filter(l => l.trim());
       if (lines.length > 3) { truncated = true; }
-      plan[el.dataset.dim] = lines.slice(0, 3).join('\n');
+      goals[el.dataset.dim] = lines.slice(0, 3).join('\n');
     });
+    const plan = { focusDims: checkedDims, goals };
     localStorage.setItem('lr_plan_' + info.cycle, JSON.stringify(plan));
     showToast(truncated ? '已截取前3个目标 ✅' : '规划已保存 ✅');
     FBSync.updateSyncStatus();
