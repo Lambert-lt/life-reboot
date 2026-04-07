@@ -137,7 +137,7 @@ function renderCheckin() {
 
     card.innerHTML = `
       <div class="dim-header"><span class="dim-emoji">${dim.emoji}</span>${dim.name}</div>
-      ${planText ? `<div class="dim-plan">🎯 ${planText}</div>` : ''}
+      ${planText ? `<div class="dim-plan">🎯 ${planText.split('\n').filter(l=>l.trim()).map((l,i)=>(i+1)+'. '+l.trim()).join('<br>')}</div>` : ''}
       <div class="status-row">
         ${STATUS.map(s => `<button class="status-btn ${curStatus === s.key ? s.cls : ''}" data-dim="${dim.key}" data-status="${s.key}">${s.label}</button>`).join('')}
       </div>
@@ -168,7 +168,7 @@ function renderCheckin() {
     const rate = DIMS.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / DIMS.length;
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
     saveDay(t, dayData);
-    FBSync.uploadSingle(dayData);
+    FBSync.uploadSingle(dayData).catch(e => console.error('Auto sync failed:', e));
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
   };
 }
@@ -303,6 +303,7 @@ function renderReview() {
       painpoints: document.getElementById('rv-painpoints')?.value || '',
       improvements: document.getElementById('rv-improvements')?.value || '',
     }));
+    FBSync.uploadSingle(loadDay(today())).catch(e => console.error('Auto sync failed:', e));
     showToast('复盘已保存 ✅');
   };
   const saveCycleBtn = document.getElementById('save-cycle-review');
@@ -310,6 +311,7 @@ function renderReview() {
     localStorage.setItem('lr_review_cycle_' + cycleInfo.cycle, JSON.stringify({
       summary: document.getElementById('rv-cycle')?.value || '',
     }));
+    FBSync.uploadSingle(loadDay(today())).catch(e => console.error('Auto sync failed:', e));
     showToast('周期复盘已保存 ✅');
   };
 }
@@ -324,15 +326,21 @@ function renderPlanning() {
   container.innerHTML = `<div class="skeleton-card" style="text-align:left">
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 周期规划 · ${info.cycle}</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:16px">第${info.cycleDay}/10天</div>
-    ${DIMS.map(d => `<div style="margin-bottom:12px"><label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:18px">${d.emoji}</span>${d.name}</label><textarea class="note-input plan-input" data-dim="${d.key}" rows="2" placeholder="本周期目标/任务...">${saved?.[d.key] || ''}</textarea></div>`).join('')}
+    ${DIMS.map(d => `<div style="margin-bottom:12px"><label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:18px">${d.emoji}</span>${d.name}<span style="margin-left:auto;font-size:11px;color:var(--text2)">最多3个目标，每行一个</span></label><textarea class="note-input plan-input" data-dim="${d.key}" rows="2" placeholder="本周期目标/任务...">${saved?.[d.key] || ''}</textarea></div>`).join('')}
     <button class="submit-btn" id="save-plan" style="font-size:14px;padding:12px">保存规划</button>
   </div>`;
 
   document.getElementById('save-plan').onclick = () => {
     const plan = {};
-    document.querySelectorAll('.plan-input').forEach(el => plan[el.dataset.dim] = el.value);
+    let truncated = false;
+    document.querySelectorAll('.plan-input').forEach(el => {
+      const lines = el.value.split('\n').filter(l => l.trim());
+      if (lines.length > 3) { truncated = true; }
+      plan[el.dataset.dim] = lines.slice(0, 3).join('\n');
+    });
     localStorage.setItem('lr_plan_' + info.cycle, JSON.stringify(plan));
-    showToast('规划已保存 ✅');
+    showToast(truncated ? '已截取前3个目标 ✅' : '规划已保存 ✅');
+    FBSync.updateSyncStatus();
   };
 }
 
