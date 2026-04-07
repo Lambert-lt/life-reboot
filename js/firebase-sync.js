@@ -22,12 +22,7 @@ const FBSync = (() => {
   }
 
   function getUserId() {
-    let uid = localStorage.getItem('fb_user_id');
-    if (!uid) {
-      uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      localStorage.setItem('fb_user_id', uid);
-    }
-    return uid;
+    return localStorage.getItem('fb_user_id') || 'u_1775548112859_cxd269';
   }
 
   function setUserId(uid) {
