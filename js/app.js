@@ -130,15 +130,38 @@ function renderCheckin() {
   const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
   // New format: { focusDims, goals }; old format: { health: '...', ... }
   const isOldPlan = planRaw && !Array.isArray(planRaw.focusDims);
+  const hasPlan = Object.keys(planRaw).length > 0;
   const focusDims = isOldPlan ? DIMS.map(d => d.key) : (planRaw.focusDims || []);
   const planGoals = isOldPlan ? planRaw : (planRaw.goals || {});
-  DIMS.forEach(dim => {
+
+  // Determine visible dims
+  let visibleDims;
+  if (!hasPlan) {
+    // No plan at all: show all 8 dims (backward compat)
+    visibleDims = DIMS;
+  } else if (isOldPlan) {
+    visibleDims = DIMS;
+  } else if (focusDims.length === 0) {
+    // Has plan but no focus selected: show prompt
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">🎯</div><div>请先在「我的 → 周期规划」中选择重点维度</div></div>';
+    updateCompletionBar();
+    return;
+  } else {
+    visibleDims = DIMS.filter(d => focusDims.includes(d.key));
+  }
+
+  // For historical data (backfill): merge dims from existing data
+  const existingDimKeys = Object.keys(existing.dimensions || {});
+  const allVisibleKeys = new Set(visibleDims.map(d => d.key));
+  existingDimKeys.forEach(k => { if (!allVisibleKeys.has(k)) allVisibleKeys.add(k); });
+  const mergedDims = DIMS.filter(d => allVisibleKeys.has(d.key));
+
+  mergedDims.forEach(dim => {
     const card = document.createElement('div');
     card.className = 'dim-card';
     const dimData = existing.dimensions?.[dim.key] || {};
     const curStatus = dimData.status || '';
     const planText = (isOldPlan ? planRaw[dim.key] : (focusDims.includes(dim.key) ? planGoals[dim.key] : '')) || '';
-    if (!isOldPlan && !focusDims.includes(dim.key) && !planRaw[dim.key]) continue;
 
     card.innerHTML = `
       <div class="dim-header"><span class="dim-emoji">${dim.emoji}</span>${dim.name}</div>
@@ -156,21 +179,21 @@ function renderCheckin() {
       const row = btn.parentElement;
       row.querySelectorAll('.status-btn').forEach(b => b.className = 'status-btn');
       btn.classList.add(STATUS.find(s => s.key === btn.dataset.status).cls);
-      updateCompletionBar();
+      updateCompletionBar(mergedDims);
     });
   });
 
-  updateCompletionBar();
+  updateCompletionBar(mergedDims);
   renderInsight();
 
   document.getElementById('submit-btn').onclick = () => {
     const dims = {};
-    DIMS.forEach(dim => {
+    mergedDims.forEach(dim => {
       const noteEl = container.querySelector(`.note-input[data-dim="${dim.key}"]`);
       const selBtn = container.querySelector(`.status-btn.sel-good[data-dim="${dim.key}"], .status-btn.sel-done[data-dim="${dim.key}"], .status-btn.sel-partial[data-dim="${dim.key}"], .status-btn.sel-none[data-dim="${dim.key}"]`);
       dims[dim.key] = { status: selBtn?.dataset.status || 'none', note: noteEl?.value || '' };
     });
-    const rate = DIMS.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / DIMS.length;
+    const rate = mergedDims.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / mergedDims.length;
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
     saveDay(t, dayData);
     FBSync.uploadSingle(dayData).catch(e => console.error('Auto sync failed:', e));
@@ -178,15 +201,16 @@ function renderCheckin() {
   };
 }
 
-function updateCompletionBar() {
+function updateCompletionBar(dims) {
   const container = document.getElementById('dim-cards');
   if (!container.children.length) return;
+  const dimList = dims || DIMS;
   let total = 0;
-  DIMS.forEach(dim => {
+  dimList.forEach(dim => {
     const sel = container.querySelector(`.status-btn.sel-good[data-dim="${dim.key}"], .status-btn.sel-done[data-dim="${dim.key}"], .status-btn.sel-partial[data-dim="${dim.key}"], .status-btn.sel-none[data-dim="${dim.key}"]`);
     total += STATUS_SCORE[sel?.dataset.status || 'none'];
   });
-  const pct = Math.round((total / DIMS.length) * 100);
+  const pct = Math.round((total / dimList.length) * 100);
   document.getElementById('completion-fill').style.width = pct + '%';
   document.getElementById('completion-text').textContent = `完成率 ${pct}%`;
 }
