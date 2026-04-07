@@ -145,7 +145,7 @@ const FBSync = (() => {
 
     let uploadCount = 0;
     const merged = {};
-    cloudDays.forEach(cd => {
+    cloudDays.filter(d => d.date && !d._test).forEach(cd => {
       merged[cd.date] = cd;
       const ld = localMap[cd.date];
       if (!ld || (ld.completion_rate !== undefined && ld.completion_rate > cd.completion_rate)) {
@@ -158,7 +158,7 @@ const FBSync = (() => {
 
     Object.values(merged).forEach(d => saveDay(d.date, d));
 
-    const cloudDates = new Set(cloudDays.map(d => d.date));
+    const cloudDates = new Set(cloudDays.filter(d => d.date && !d._test).map(d => d.date));
     const toUpload = localDays.filter(d => !cloudDates.has(d.date));
     if (toUpload.length) {
       progressCb(`🔄 上传 ${toUpload.length} 条新数据...`);
