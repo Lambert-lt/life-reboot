@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>人生重启系统</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🏗️ 人生重启系统</h1>
+    <div class="sub" id="cycle-info"></div>
+  </div>
+
+  <!-- Page: Checkin -->
+  <div class="page active" id="page-checkin">
+    <div id="dim-cards"></div>
+    <div style="margin:8px 0 4px;font-size:13px;color:var(--text2)" id="completion-text">完成率 0%</div>
+    <div class="completion-bar"><div class="completion-fill" id="completion-fill" style="width:0%"></div></div>
+    <div class="submit-section">
+      <button class="submit-btn" id="submit-btn">提交今日打卡</button>
+      <div class="export-row">
+        <button class="export-btn" id="export-json">导出 JSON</button>
+        <button class="export-btn" id="export-csv">导出 CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: Board -->
+  <div class="page" id="page-board">
+    <div id="board-content"><div class="skeleton-card">加载中...</div></div>
+  </div>
+
+  <!-- Page: Stats -->
+  <div class="page" id="page-stats">
+    <div id="stats-content"><div class="skeleton-card">加载中...</div></div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="checkin"><span class="nav-icon">📋</span>今日打卡</button>
+    <button class="nav-btn" data-page="board"><span class="nav-icon">📊</span>周期看板</button>
+    <button class="nav-btn" data-page="stats"><span class="nav-icon">📈</span>数据统计</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/app.js"></script>
+</body>
+</html>
