@@ -10,7 +10,7 @@ const DIMS = [
   { key: 'hobby',   name: '兴趣体验', emoji: '🎨' },
 ];
 const STATUS = [
-  { key: 'good',    label: '很好 ✅✅', cls: 'sel-good' },
+  { key: 'good',    label: '😄 超棒', cls: 'sel-good' },
   { key: 'done',    label: '完成 ✅',   cls: 'sel-done' },
   { key: 'partial', label: '部分 ⚠️',  cls: 'sel-partial' },
   { key: 'none',    label: '未开始 ❌', cls: 'sel-none' },
