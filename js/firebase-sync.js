@@ -136,7 +136,7 @@ const FBSync = (() => {
     try {
       const snap = await db.collection('lifeReboot').where('userId', '==', uid).limit(1000).get();
       snap.forEach(doc => cloudDays.push(docToDay(doc)));
-    } catch (e) { progressCb('❌ 拉取失败: ' + e.message); updateStatusUI('⚠️', '同步失败'); return; }
+    } catch (e) { progressCb('❌ 拉取失败: ' + e.message); console.error('sync fetch error:', e); updateStatusUI('⚠️', '同步失败'); return; }
 
     progressCb(`🔄 云端 ${cloudDays.length} 条，开始合并...`);
     const localDays = getAllDays();
@@ -170,6 +170,8 @@ const FBSync = (() => {
 
     updateStatusUI('☁️', '已同步');
     progressCb(`✅ 同步完成！云端 ${cloudDays.length} 条，上传 ${uploadCount} 条`);
+    renderCheckin();
+    if (typeof switchPage === 'function') { /* trigger re-render */ }
   }
 
   async function uploadSingle(day) {
