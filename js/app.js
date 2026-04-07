@@ -166,7 +166,9 @@ function renderCheckin() {
       dims[dim.key] = { status: selBtn?.dataset.status || 'none', note: noteEl?.value || '' };
     });
     const rate = DIMS.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / DIMS.length;
-    saveDay(t, { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 });
+    const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
+    saveDay(t, dayData);
+    LCSync.uploadSingle(dayData);
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
   };
 }
@@ -484,6 +486,68 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.mine-btn').forEach(b => b.addEventListener('click', () => switchSub(b.dataset.sub)));
   document.getElementById('export-json').onclick = exportJSON;
   document.getElementById('export-csv').onclick = exportCSV;
+
+  // Import
+  document.getElementById('import-btn').onclick = () => document.getElementById('import-file').click();
+  document.getElementById('import-file').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const arr = Array.isArray(data) ? data : [data];
+        let count = 0;
+        arr.forEach(item => {
+          if (item.date) { saveDay(item.date, item); count++; }
+        });
+        const resultEl = document.getElementById('import-result');
+        resultEl.style.display = 'block';
+        resultEl.textContent = `✅ 导入了 ${count} 条记录`;
+        showToast(`导入了 ${count} 条记录`);
+      } catch (err) { showToast('导入失败：JSON 格式错误'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // LeanCloud sync settings
+  const lcCfg = LCSync.getConfig();
+ document.getElementById('lc-app-id').value = lcCfg.appId;
+  document.getElementById('lc-app-key').value = lcCfg.appKey;
+  document.getElementById('lc-server-url').value = lcCfg.serverURL;
+  document.getElementById('lc-save').onclick = () => {
+    localStorage.setItem('lc_app_id', document.getElementById('lc-app-id').value.trim());
+    localStorage.setItem('lc_app_key', document.getElementById('lc-app-key').value.trim());
+    localStorage.setItem('lc_server_url', document.getElementById('lc-server-url').value.trim());
+    showToast('配置已保存 ✅');
+    LCSync.updateSyncStatus();
+  };
+  document.getElementById('lc-test').onclick = async () => {
+    const statusEl = document.getElementById('lc-status');
+    statusEl.textContent = '测试中...';
+    const r = await LCSync.testConnection();
+    statusEl.textContent = r.msg;
+    LCSync.updateSyncStatus();
+  };
+  document.getElementById('lc-sync-btn').onclick = async () => {
+    const prog = document.getElementById('lc-sync-progress');
+    prog.style.display = 'block';
+    document.getElementById('lc-sync-btn').disabled = true;
+    await LCSync.syncAll(msg => prog.textContent = msg);
+    document.getElementById('lc-sync-btn').disabled = false;
+    renderCheckin();
+  };
+  document.getElementById('fab-sync')?.addEventListener('click', async () => {
+    const cfg = LCSync.getConfig();
+    if (!cfg.appId || !cfg.appKey) { showToast('请先配置云同步'); return; }
+    showToast('同步中...');
+    await LCSync.syncAll(msg => {});
+    showToast('同步完成 ✅');
+    renderCheckin();
+  });
+
+  LCSync.updateSyncStatus();
   document.getElementById('checkin-date').addEventListener('change', (e) => {
     checkinDate = e.target.value || null;
     renderCheckin();

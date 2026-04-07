@@ -29,6 +29,15 @@ body {
 }
 
 /* Header */
+.header-row { display: flex; align-items: center; justify-content: space-between; }
+.sync-status { font-size: 20px; cursor: pointer; }
+.sync-fab {
+  position: fixed; bottom: 100px; right: 16px; width: 48px; height: 48px;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--card);
+  font-size: 22px; cursor: pointer; z-index: 9; box-shadow: var(--shadow);
+  transition: all .2s; display: flex; align-items: center; justify-content: center;
+}
+.sync-fab:active { transform: scale(0.92); }
 .header {
   background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
   padding: 20px 20px 16px;
