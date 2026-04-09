@@ -77,7 +77,7 @@ const FBSync = (() => {
       }
       db = firebase.firestore();
       // Enable offline persistence
-      db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('[Firebase] Persistence failed:', err));
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); // Silently ignore persistence errors on mobile
       initialized = true;
       return true;
     } catch (e) {
@@ -254,8 +254,15 @@ const FBSync = (() => {
       }
       return true;
     } catch (e) {
-      console.error('uploadAll error:', e);
-      if (!silent) {
+      const msg = (e.message || '').toLowerCase();
+      const isOfflineErr = msg.includes('offline') || msg.includes('network');
+      if (isOfflineErr) {
+        // Don't scare user - retry silently after 10s
+        updateStatusUI('📴', '等待网络');
+        updateSyncPageStatus('📴', '网络不稳定，将自动重试');
+        setTimeout(() => uploadAll(silent), 10000);
+      } else if (!silent) {
+        console.error('uploadAll error:', e);
         updateStatusUI('⚠️', '同步失败');
         updateSyncPageStatus('⚠️', '同步失败: ' + (e.message || ''));
       }
