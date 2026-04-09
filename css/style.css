@@ -366,6 +366,15 @@ body {
 }
 
 /* Plan hint in checkin card */
+.template-btns { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.template-btn {
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg); color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.template-btn:active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+.body-data-card { padding: 14px 16px !important; cursor: default; }
+
 .dim-plan {
   font-size: 13px;
   color: var(--accent);

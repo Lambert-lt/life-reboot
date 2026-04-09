@@ -1,4 +1,4 @@
-// Firebase Firestore Sync Module for 人生重启系统
+// Firebase Firestore Sync Module for 重启系统
 const FBSync = (() => {
   let db = null;
   let initialized = false;

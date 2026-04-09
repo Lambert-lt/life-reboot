@@ -1,4 +1,4 @@
-// 人生重启系统 - App v2.0 Phase 3+4
+// 重启系统 - App v2.0 Phase 3+4
 const DIMS = [
   { key: 'health',  name: '身体健康', emoji: '🧬' },
   { key: 'learn',   name: '认知学习', emoji: '🧠' },
@@ -16,6 +16,41 @@ const STATUS = [
   { key: 'none',    label: '未开始 ❌', cls: 'sel-none' },
 ];
 const STATUS_SCORE = { good: 1, done: 0.75, partial: 0.3, none: 0 };
+
+const TEMPLATES = {
+  health: [
+    "午休运动5天\n每天喝水2000ml\n11点前睡觉",
+    "午休运动升级(HIIT)\n每天步行8000步\n体重记录",
+  ],
+  mind: [
+    "每小时起身活动\n睡前肩颈拉伸\n冥想10分钟",
+    "写情绪日记\n深呼吸练习\n感恩日记",
+  ],
+  living: [
+    "午餐7分饱\n晚餐轻食\n少油少盐",
+    "自己做3次饭\n戒掉零食\n每天吃水果",
+  ],
+  learn: [
+    "阅读30分钟\n学一项新技能\n写学习笔记",
+    "听播客通勤时间\n看纪录片\n练习英语",
+  ],
+  finance: [
+    "记录每笔支出\n预算控制\n取消无用订阅",
+    "学习理财知识\n存下收入的20%\n整理账单",
+  ],
+  social: [
+    "主动联系一个朋友\n认真倾听\n表达感谢",
+    "减少无效社交\n陪伴家人\n写一封感谢信",
+  ],
+  career: [
+    "完成本周核心任务\n学习一个工具\n整理工作笔记",
+    "优化一个流程\n主动汇报进度\n规划下周工作",
+  ],
+  hobby: [
+    "弹吉他30分钟\n画一幅画\n学一首新歌",
+    "跑步5公里\n拍照练习\n尝试新食谱",
+  ],
+};
 
 let currentPage = 'checkin';
 let checkinDate = null; // null = today
@@ -110,7 +145,9 @@ function renderInsight() {
 function renderCheckin() {
   const t = checkinDate || today();
   const info = getCycleInfo(t);
-  document.getElementById('cycle-info').textContent = `${today()} · ${info.cycle} · 第${info.cycleDay}天`;
+  const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
+  const theme = planRaw.theme || '';
+  document.getElementById('cycle-info').textContent = `${today()} · ${info.cycle} · 第${info.cycleDay}天` + (theme ? ` · ${theme}` : '');
 
   const dateInput = document.getElementById('checkin-date');
   dateInput.value = t;
@@ -127,8 +164,8 @@ function renderCheckin() {
   container.innerHTML = '';
   const existing = loadDay(t) || {};
 
-  const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
-  // New format: { focusDims, goals }; old format: { health: '...', ... }
+  // planRaw already loaded above for theme
+  // New format: { focusDims, goals, theme }; old format: { health: '...', ... }
   const isOldPlan = planRaw && !Array.isArray(planRaw.focusDims);
   const hasPlan = Object.keys(planRaw).length > 0;
   const focusDims = isOldPlan ? DIMS.map(d => d.key) : (planRaw.focusDims || []);
@@ -155,6 +192,31 @@ function renderCheckin() {
   const allVisibleKeys = new Set(visibleDims.map(d => d.key));
   existingDimKeys.forEach(k => { if (!allVisibleKeys.has(k)) allVisibleKeys.add(k); });
   const mergedDims = DIMS.filter(d => allVisibleKeys.has(d.key));
+
+  // Body data section
+  const bodyData = existing.bodyData || {};
+  const bodySection = document.createElement('div');
+  bodySection.className = 'skeleton-card body-data-card';
+  bodySection.style.textAlign = 'left';
+  bodySection.innerHTML = `
+    <div class="body-data-toggle" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:14px">
+      <span>📏</span><span>身体数据</span><span style="color:var(--text2);font-size:12px;margin-left:auto">${bodyData.weight || bodyData.waist ? '已记录' : '展开记录'}</span><span class="body-data-arrow" style="transition:transform .2s;font-size:12px;color:var(--text2)">▼</span>
+    </div>
+    <div class="body-data-fields" style="display:none;margin-top:12px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label style="font-size:12px;color:var(--text2)">体重(kg)</label><input type="number" step="0.1" class="note-input" id="body-weight" value="${bodyData.weight || ''}" style="margin-top:4px" placeholder="如 75.5"></div>
+        <div style="flex:1"><label style="font-size:12px;color:var(--text2)">腰围(cm)</label><input type="number" step="0.1" class="note-input" id="body-waist" value="${bodyData.waist || ''}" style="margin-top:4px" placeholder="如 85"></div>
+      </div>
+    </div>
+  `;
+  bodySection.querySelector('.body-data-toggle').addEventListener('click', () => {
+    const fields = bodySection.querySelector('.body-data-fields');
+    const arrow = bodySection.querySelector('.body-data-arrow');
+    const visible = fields.style.display !== 'none';
+    fields.style.display = visible ? 'none' : 'block';
+    arrow.style.transform = visible ? '' : 'rotate(180deg)';
+  });
+  container.appendChild(bodySection);
 
   mergedDims.forEach(dim => {
     const card = document.createElement('div');
@@ -194,7 +256,13 @@ function renderCheckin() {
       dims[dim.key] = { status: selBtn?.dataset.status || 'none', note: noteEl?.value || '' };
     });
     const rate = mergedDims.reduce((s, d) => s + STATUS_SCORE[dims[d.key].status], 0) / mergedDims.length;
+    const w = parseFloat(document.getElementById('body-weight')?.value) || 0;
+    const wa = parseFloat(document.getElementById('body-waist')?.value) || 0;
+    const bodyData = {};
+    if (w > 0) bodyData.weight = w;
+    if (wa > 0) bodyData.waist = wa;
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
+    if (Object.keys(bodyData).length) dayData.bodyData = bodyData;
     saveDay(t, dayData);
     FBSync.uploadSingle(dayData).catch(e => console.error('Auto sync failed:', e));
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
@@ -285,9 +353,23 @@ function renderReview() {
       const avg = Math.round(dimAvgs[d.key] * 100);
       return `<div style="margin-bottom:6px"><span style="font-size:13px">${d.emoji} ${d.name}</span><span style="float:right;font-size:13px">${avg}%</span><div class="completion-bar" style="height:8px"><div class="completion-fill" style="width:${avg}%"></div></div></div>`;
     }).join('')}
+    ${weightSection}
     <div style="font-weight:600;margin:12px 0 8px">每日趋势</div>
     <div class="trend-chart">${dailyRates.map(d => `<div class="trend-col"><div class="trend-bar" style="height:${Math.max(d.rate, 4)}%"></div><div class="trend-label">${d.label}</div></div>`).join('')}</div>
   </div>`;
+
+  // Weight change this week
+  const weekBodyData = validDays.filter(d => d.bodyData?.weight).map(d => ({ date: d.date, weight: d.bodyData.weight }));
+  let weightSection = '';
+  if (weekBodyData.length >= 2) {
+    const first = weekBodyData[0], last = weekBodyData[weekBodyData.length - 1];
+    const diff = (last.weight - first.weight).toFixed(1);
+    const diffStr = diff > 0 ? `+${diff}kg` : `${diff}kg`;
+    const diffColor = diff <= 0 ? 'var(--good)' : 'var(--none)';
+    weightSection = `<div style="margin:12px 0;padding:10px;background:var(--bg);border-radius:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px">📏 本周体重变化</span><span style="font-weight:700;color:${diffColor}">${diffStr}</span></div>`;
+  } else if (weekBodyData.length === 1) {
+    weightSection = `<div style="margin:12px 0;padding:10px;background:var(--bg);border-radius:10px;font-size:13px">📏 本周体重：${weekBodyData[0].weight}kg</div>`;
+  }
 
   // Weekly review form
   html += `<div class="skeleton-card" style="text-align:left">
@@ -356,23 +438,44 @@ function renderPlanning() {
   let focusDims = isOld ? DIMS.map(d => d.key) : (saved?.focusDims || []);
   const goals = saved?.goals || (isOld ? (() => { const g = {}; DIMS.forEach(d => { if (saved?.[d.key]) g[d.key] = saved[d.key]; }); return g; })() : {});
 
+  const theme = saved?.theme || '';
   container.innerHTML = `<div class="skeleton-card" style="text-align:left">
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 周期规划 · ${info.cycle}</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:4px">第${info.cycleDay}/10天</div>
     <div style="font-size:13px;color:var(--accent);margin-bottom:12px">选择最多3个重点维度，为每个维度设定目标</div>
+    <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">🏷️ 周期主题</label><input class="note-input" id="plan-theme" value="${theme}" placeholder="给这个周期起个名字，如「习惯建立期」" style="margin-top:0"></div>
     ${DIMS.map(d => {
       const checked = focusDims.includes(d.key);
+      const dimTemplates = TEMPLATES[d.key] || [];
+      const tplBtns = checked ? `<div class="template-btns">${dimTemplates.map((tpl, i) => {
+        const label = tpl.split('\n')[0].trim();
+        const shortLabel = label.length > 15 ? label.slice(0, 15) + '...' : label;
+        return `<button class="template-btn" data-dim="${d.key}" data-tpl-idx="${i}" title="${label}">${shortLabel}</button>`;
+      }).join('')}</div>` : '';
       return `<div class="plan-dim-row" data-dim="${d.key}" style="margin-bottom:8px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:var(--card-bg);border-radius:10px;border:2px solid ${checked ? 'var(--accent)' : 'var(--border)'};transition:border-color .2s">
           <input type="checkbox" class="plan-cb" data-dim="${d.key}" ${checked ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent)">
           <span style="font-size:18px">${d.emoji}</span>
           <span style="font-size:14px;font-weight:600">${d.name}</span>
         </label>
-        ${checked ? `<textarea class="note-input plan-goal" data-dim="${d.key}" rows="2" placeholder="最多3个目标，每行一个..." style="margin-top:6px">${goals[d.key] || ''}</textarea>` : ''}
+        ${checked ? tplBtns + `<textarea class="note-input plan-goal" data-dim="${d.key}" rows="2" placeholder="最多3个目标，每行一个..." style="margin-top:6px">${goals[d.key] || ''}</textarea>` : ''}
       </div>`;
     }).join('')}
     <button class="submit-btn" id="save-plan" style="font-size:14px;padding:12px">保存规划</button>
   </div>`;
+
+  // Template buttons
+  container.querySelectorAll('.template-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+ const dim = btn.dataset.dim;
+      const idx = parseInt(btn.dataset.tplIdx);
+      const ta = container.querySelector(`.plan-goal[data-dim="${dim}"]`);
+      if (ta) {
+        const tpl = TEMPLATES[dim][idx];
+        ta.value = ta.value ? ta.value + '\n' + tpl : tpl;
+      }
+    });
+  });
 
   // Checkbox toggle
   container.querySelectorAll('.plan-cb').forEach(cb => {
@@ -387,6 +490,26 @@ function renderPlanning() {
       const dim = cb.dataset.dim;
       if (cb.checked) {
         row.querySelector('label').style.borderColor = 'var(--accent)';
+        // Add template buttons
+        const dimTemplates = TEMPLATES[dim] || [];
+        const tplDiv = document.createElement('div');
+        tplDiv.className = 'template-btns';
+        dimTemplates.forEach((tpl, i) => {
+          const label = tpl.split('\n')[0].trim();
+          const shortLabel = label.length > 15 ? label.slice(0, 15) + '...' : label;
+          const btn = document.createElement('button');
+          btn.className = 'template-btn';
+          btn.dataset.dim = dim;
+          btn.dataset.tplIdx = i;
+          btn.title = label;
+          btn.textContent = shortLabel;
+          btn.addEventListener('click', () => {
+            const ta = row.querySelector('.plan-goal');
+            if (ta) ta.value = ta.value ? ta.value + '\n' + TEMPLATES[dim][i] : TEMPLATES[dim][i];
+          });
+          tplDiv.appendChild(btn);
+        });
+        row.appendChild(tplDiv);
         const ta = document.createElement('textarea');
         ta.className = 'note-input plan-goal';
         ta.dataset.dim = dim;
@@ -411,11 +534,39 @@ function renderPlanning() {
       if (lines.length > 3) { truncated = true; }
       goals[el.dataset.dim] = lines.slice(0, 3).join('\n');
     });
-    const plan = { focusDims: checkedDims, goals };
+    const theme = document.getElementById('plan-theme')?.value.trim() || '';
+    const plan = { focusDims: checkedDims, goals, theme };
     localStorage.setItem('lr_plan_' + info.cycle, JSON.stringify(plan));
     showToast(truncated ? '已截取前3个目标 ✅' : '规划已保存 ✅');
     FBSync.updateSyncStatus();
   };
+}
+
+// --- Weight Chart Helper ---
+function renderWeightChart(days) {
+  const data = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = loadDay(daysAgo(i));
+    if (d?.bodyData?.weight) data.push({ label: daysAgo(i).slice(5), weight: d.bodyData.weight });
+  }
+  if (data.length < 2) return '<div style="font-size:13px;color:var(--text2);text-align:center;padding:12px">记录体重后自动显示趋势（至少2天）</div>';
+  const min = Math.min(...data.map(d => d.weight)) - 1;
+  const max = Math.max(...data.map(d => d.weight)) + 1;
+  const range = max - min || 1;
+  const w = Math.max(data.length * 40, 280);
+  const h = 140;
+  const pts = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * (w - 40) + 20;
+    const y = h - 20 - ((d.weight - min) / range) * (h - 40);
+    return { x, y, ...d };
+  });
+  const polyStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+  const areaStr = `${pts[0].x},${h - 20} ${polyStr} ${pts[pts.length - 1].x},${h - 20}`;
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-height:160px" preserveAspectRatio="xMidYMid meet">
+    <polygon points="${areaStr}" fill="rgba(92,224,160,.1)"/>
+    <polyline points="${polyStr}" fill="none" stroke="var(--good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--good)"/><text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="var(--text2)" font-size="9">${p.weight}</text><text x="${p.x}" y="${h - 4}" text-anchor="middle" fill="var(--text2)" font-size="8">${p.label}</text>`).join('')}
+  </svg>`;
 }
 
 // --- Stats (Phase 4.2) ---
@@ -493,6 +644,10 @@ function renderStats() {
       <div class="trend-chart">${weekTrend.map(w => `<div class="trend-col"><div class="trend-bar" style="height:${Math.max(w.rate, 4)}%"><span style="font-size:10px">${w.rate}%</span></div><div class="trend-label">${w.label}</div></div>`).join('')}</div>
     </div>
     <div class="skeleton-card" style="text-align:left">
+      <div style="font-weight:700;margin-bottom:10px">📏 体重趋势</div>
+      ${renderWeightChart(30)}
+    </div>
+    <div class="skeleton-card" style="text-align:left">
       <div style="font-weight:700;margin-bottom:10px">🏆 维度排行</div>
       ${dimRanking.map((d, i) => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:14px;color:var(--text2);width:20px">#${i+1}</span><span style="font-size:18px">${d.emoji}</span><span style="flex:1;font-size:14px">${d.name}</span><span style="font-weight:700;color:var(--accent)">${d.avg}%</span></div>`).join('')}
     </div>
@@ -568,6 +723,29 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.mine-btn').forEach(b => b.addEventListener('click', () => switchSub(b.dataset.sub)));
   document.getElementById('export-json').onclick = exportJSON;
   document.getElementById('export-csv').onclick = exportCSV;
+
+  // Clear data
+  document.querySelectorAll('.clear-btn').forEach(btn => {
+    btn.onclick = () => {
+      const days = btn.dataset.days;
+      const msg = days === 'all' ? '确定清除所有历史数据？此操作不可恢复！' : `确定清除最近 ${days} 天的数据？`;
+      if (!confirm(msg)) return;
+      const now = new Date();
+      let count = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k.startsWith('lr_20')) continue;
+        if (days === 'all') { localStorage.removeItem(k); count++; i--; }
+        else {
+          const d = new Date(k.slice(3) + 'T00:00:00+08:00');
+          const diff = (now - d) / 86400000;
+          if (diff < parseInt(days)) { localStorage.removeItem(k); count++; i--; }
+        }
+      }
+      showToast(`已清除 ${count} 条数据`);
+      renderCheckin();
+    };
+  });
 
   // Import
   document.getElementById('import-btn').onclick = () => document.getElementById('import-file').click();

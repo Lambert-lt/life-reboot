@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#16213e">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>人生重启系统</title>
+  <title>重启系统</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -14,7 +14,7 @@
 <body>
   <div class="header">
     <div class="header-row">
-      <h1>🏗️ 人生重启系统</h1>
+      <h1>🏗️ 重启系统</h1>
       <span class="sync-status" id="sync-status" title="同步状态"></span>
     </div>
     <div class="sub" id="cycle-info"></div>
@@ -74,6 +74,15 @@
         <button class="export-btn" id="import-btn" style="width:100%">📥 选择 JSON 文件</button>
         <div id="import-result" style="margin-top:8px;font-size:13px;color:var(--accent);display:none"></div>
       </div>
+      <div class="skeleton-card">
+        <div style="font-weight:700;margin-bottom:16px">🗑️ 清除数据</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="export-btn clear-btn" data-days="1">清除1天</button>
+          <button class="export-btn clear-btn" data-days="3">清除3天</button>
+          <button class="export-btn clear-btn" data-days="7">清除7天</button>
+          <button class="export-btn clear-btn" data-days="all" style="border-color:var(--none);color:var(--none)">清除所有</button>
+        </div>
+      </div>
     </div>
     <div id="sub-sync" class="sub-page">
       <div class="skeleton-card" style="text-align:left">
@@ -125,7 +134,7 @@
     </div>
     <div id="sub-about" class="sub-page">
       <div class="skeleton-card">
-        <div style="font-weight:700;font-size:18px;margin-bottom:8px">🏗️ 人生重启系统</div>
+        <div style="font-weight:700;font-size:18px;margin-bottom:8px">🏗️ 重启系统</div>
         <div style="color:var(--text2);font-size:13px">v2.0 · Phase 3+4</div>
         <div style="color:var(--text2);font-size:13px;margin-top:8px">基于易命二十九术的每日打卡系统</div>
         <div style="color:var(--text2);font-size:13px;margin-top:4px">每10天一个周期，8维度全方位成长</div>
