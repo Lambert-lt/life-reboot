@@ -305,8 +305,27 @@ const FBSync = (() => {
   // --- Auto sync trigger (called after any local data change) ---
   async function autoSync() {
     if (!initFB()) return;
-    // Stamp current time on changed key if provided
     await uploadAll(true);
+  }
+
+  // Force pull all data from cloud (overwrite local)
+  async function forcePullFromCloud() {
+    if (!initFB()) throw new Error('Firebase not initialized');
+    const uid = getUserId();
+    const docRef = db.collection('lifeReboot').doc(uid + '_sync');
+    // Use {source: 'server'} to bypass cache
+    const docSnap = await docRef.get({ source: 'server' });
+    if (!docSnap.exists) throw new Error('No cloud data found');
+    const cloudItems = docSnap.data().items || {};
+    let count = 0;
+    Object.entries(cloudItems).forEach(([id, item]) => {
+      applyCloudItem(id, item);
+      count++;
+    });
+    lastSyncTime = Date.now();
+    updateStatusUI('✅', '已同步');
+    updateSyncPageStatus('✅', '已从云端拉取 ' + count + ' 条');
+    return count;
   }
 
   // Convenience: sync a single item quickly
@@ -435,6 +454,6 @@ const FBSync = (() => {
   return {
     getConfig, saveConfig, initFB, updateSyncStatus, testConnection,
     syncAll, uploadSingle: () => autoSync(), // backward compat
-    getUserId, setUserId, autoSync, syncItem, startListener, stopListener, init,
+    getUserId, setUserId, autoSync, syncItem, forcePullFromCloud, startListener, stopListener, init,
   };
 })();
