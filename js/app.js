@@ -1258,9 +1258,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fb-storage-bucket').value = fbCfg.storageBucket || '';
   document.getElementById('fb-sender-id').value = fbCfg.messagingSenderId || '';
   document.getElementById('fb-user-id').value = FBSync.getUserId();
-  document.getElementById('fb-copy-uid').onclick = () => {
-    navigator.clipboard.writeText(FBSync.getUserId()).then(() => showToast('已复制 ✅'));
-  };
+  function copyUserId() {
+    const uid = FBSync.getUserId();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(uid).then(() => showToast('已复制 ✅')).catch(() => fallbackCopy(uid));
+    } else {
+      fallbackCopy(uid);
+    }
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    try { document.execCommand('copy'); showToast('已复制 ✅'); } catch(e) { showToast('复制失败，请手动复制: ' + text); }
+    document.body.removeChild(ta);
+  }
+  document.getElementById('fb-copy-uid').onclick = copyUserId;
+  document.getElementById('about-copy-uid').onclick = copyUserId;
   document.getElementById('fb-set-uid').onclick = () => {
     const newUid = document.getElementById('fb-user-id-edit').value.trim();
     if (!newUid) { showToast('请输入用户 ID'); return; }
@@ -1272,9 +1289,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   // About page user ID
   document.getElementById('about-user-id').textContent = FBSync.getUserId();
-  document.getElementById('about-copy-uid').onclick = () => {
-    navigator.clipboard.writeText(FBSync.getUserId()).then(() => showToast('已复制 ✅'));
-  };
   // Sync page connection status
   function updateSyncPageStatus() {
     const el = document.getElementById('sync-connection-status');
