@@ -17,6 +17,14 @@ const STATUS = [
 ];
 const STATUS_SCORE = { good: 1, done: 0.75, partial: 0.3, none: 0 };
 
+// --- P1-4: Insight Templates ---
+const INSIGHT_TEMPLATES = {
+  allGood: ['🔥 昨日满分，继续保持！', '💯 全维度完成，你太强了！', '✨ 昨天完美收官，今天继续冲！'],
+  newDay: ['💡 新的一天，从最简单的维度开始！', '🌅 新起点，选择一个维度先完成它'],
+  notCheckedIn: ['⏰ 今天还没打卡哦，现在完成也不晚！', '📅 今日打卡待完成，动起来吧！'],
+};
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
 const TEMPLATES = {
   health: [
     "午休运动5天\n每天喝水2000ml\n11点前睡觉",
@@ -99,26 +107,25 @@ function daysAgo(n) {
 
 function dateDiff(a, b) { return Math.abs(new Date(a) - new Date(b)) / 86400000; }
 
-// --- Insight Card (Phase 4.1) ---
+// --- Insight Card (Phase 4.1 + P1-4 Enhancement) ---
 function renderInsight() {
   const el = document.getElementById('insight-card');
   const t = today();
   const yesterday = daysAgo(1);
   const yd = loadDay(yesterday);
-  if (!yd) { el.style.display = 'none'; return; }
+  const td = loadDay(t);
+  if (!yd && !td) { el.style.display = 'none'; return; }
   el.style.display = 'block';
 
   const msgs = [];
-  const fails = DIMS.filter(d => (yd.dimensions?.[d.key]?.status || 'none') === 'none');
-  const allGood = DIMS.every(d => (yd.dimensions?.[d.key]?.status || 'none') !== 'none');
+  const hasYesterday = !!yd;
+  const allGood = hasYesterday && DIMS.every(d => (yd.dimensions?.[d.key]?.status || 'none') !== 'none');
 
-  if (allGood) {
-    msgs.push('🔥 昨日满分，继续保持！');
+  if (allGood) msgs.push(pickRandom(INSIGHT_TEMPLATES.allGood));
+  if (hasYesterday) {
+    const fails = DIMS.filter(d => (yd.dimensions?.[d.key]?.status || 'none') === 'none');
+    if (fails.length > 0) msgs.push('⚠️ 昨日 ' + fails.map(d => d.emoji + d.name).join('、') + ' 未完成，今天记得补上！');
   }
-  if (fails.length > 0) {
-    msgs.push('⚠️ 昨日 ' + fails.map(d => d.emoji + d.name).join('、') + ' 未完成，今天记得补上！');
-  }
-  // Check 3-day streak
   DIMS.forEach(dim => {
     let streak = 0;
     for (let i = 1; i <= 3; i++) {
@@ -128,17 +135,36 @@ function renderInsight() {
     }
     if (streak >= 3) msgs.push('📉 ' + dim.emoji + dim.name + ' 已连续' + streak + '天未完成，是否需要调整目标？');
   });
-
-  // Today's energy suggestion
-  const td = loadDay(t);
+  // P1-4: 7-day decline trend
+  DIMS.forEach(dim => {
+    const scores = [];
+    for (let i = 1; i <= 7; i++) {
+      const dd = loadDay(daysAgo(i));
+      if (dd) scores.push(STATUS_SCORE[dd.dimensions?.[dim.key]?.status || 'none']);
+    }
+    if (scores.length >= 3) {
+      const last3 = scores.slice(-3);
+      if (last3[2] < last3[1] && last3[1] < last3[0]) msgs.push('📉 ' + dim.emoji + dim.name + ' 近3天评分持续下降，注意调整');
+    }
+  });
+  // P1-4: Not checked in & past 20:00
+  if (!td && new Date().getHours() >= 20) msgs.push(pickRandom(INSIGHT_TEMPLATES.notCheckedIn));
+  // P1-4: Focus dimension priority
+  const info = getCycleInfo(t);
+  const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
+  if (planRaw.focusDims && planRaw.focusDims.length > 0) {
+    const focusDim = DIMS.find(d => d.key === planRaw.focusDims[0]);
+    if (focusDim && (!td || (td.dimensions?.[focusDim.key]?.status || 'none') === 'none'))
+      msgs.push('🎯 本周期重点：' + focusDim.emoji + focusDim.name + '，优先完成它！');
+  }
+  // Today progress
   if (td) {
     const done = DIMS.filter(d => (td.dimensions?.[d.key]?.status || 'none') !== 'none').length;
-    if (done === 0) msgs.push('💡 新的一天，从最简单的维度开始！');
+    if (done === 0) msgs.push(pickRandom(INSIGHT_TEMPLATES.newDay));
     else if (done < 4) msgs.push('💪 已完成' + done + '个维度，加油！');
     else if (done < 8) msgs.push('🚀 冲刺中！还剩' + (8 - done) + '个维度！');
   }
-
-  el.innerHTML = msgs.length ? msgs.join('<br>') : '';
+  el.innerHTML = [...new Set(msgs)].join('<br>') || '';
 }
 
 // --- Checkin Page (Phase 4.3: date picker) ---
@@ -147,6 +173,20 @@ function renderCheckin() {
   const info = getCycleInfo(t);
   const planRaw = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || '{}');
   const theme = planRaw.theme || '';
+  // P0-4: Checkin status indicator
+  const todayData = loadDay(today());
+  const checkinStatusEl = document.getElementById('checkin-status');
+  if (checkinStatusEl) {
+    if (todayData) {
+      checkinStatusEl.textContent = '✅ 今日已打卡';
+      checkinStatusEl.style.color = 'var(--good)';
+      if (todayData.checkinTime) checkinStatusEl.textContent += ' · ' + todayData.checkinTime;
+    } else {
+      checkinStatusEl.textContent = '⏳ 待打卡';
+      checkinStatusEl.style.color = 'var(--partial)';
+    }
+  }
+
   document.getElementById('cycle-info').textContent = `${today()} · ${info.cycle} · 第${info.cycleDay}天` + (theme ? ` · ${theme}` : '');
 
   const dateInput = document.getElementById('checkin-date');
@@ -248,6 +288,39 @@ function renderCheckin() {
   updateCompletionBar(mergedDims);
   renderInsight();
 
+  // P0-2: Day review init
+  const existingReview = existing.dayReview || {};
+  const dayReviewSection = document.getElementById('day-review-section');
+  if (dayReviewSection) {
+    dayReviewSection.style.display = 'none';
+    document.getElementById('dr-satisfied').value = existingReview.satisfied || '';
+    document.getElementById('dr-improve').value = existingReview.improve || '';
+    document.getElementById('dr-important').value = existingReview.important || '';
+    // If already filled, show it
+    if (existingReview.satisfied || existingReview.improve || existingReview.important) {
+      dayReviewSection.style.display = 'block';
+    }
+  }
+  // P0-2: Preserve dayReview when saving checkin
+  const oldDayData = loadDay(t);
+  // (handled inline in submit handler via existing.dayReview)
+
+  // P0-2: Save day review button
+  const saveDRBtn = document.getElementById('save-day-review');
+  if (saveDRBtn) {
+    saveDRBtn.onclick = () => {
+      const day = loadDay(t) || { date: t };
+      day.dayReview = {
+        satisfied: document.getElementById('dr-satisfied').value,
+        improve: document.getElementById('dr-improve').value,
+        important: document.getElementById('dr-important').value,
+      };
+      saveDay(t, day);
+      FBSync.syncItem('lr_' + t);
+      showToast('日复盘已保存 ✅');
+    };
+  }
+
   document.getElementById('submit-btn').onclick = () => {
     const dims = {};
     mergedDims.forEach(dim => {
@@ -263,9 +336,22 @@ function renderCheckin() {
     if (wa > 0) bodyData.waist = wa;
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
     if (Object.keys(bodyData).length) dayData.bodyData = bodyData;
+    // Preserve existing day review
+    const oldDay = loadDay(t);
+    if (oldDay?.dayReview) dayData.dayReview = oldDay.dayReview;
+    dayData.checkinTime = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
     saveDay(t, dayData);
     FBSync.syncItem('lr_' + t);
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
+    // Update checkin status
+    const csi = document.getElementById('checkin-status');
+    if (csi && t === today()) {
+      csi.textContent = '✅ 今日已打卡 · ' + dayData.checkinTime;
+      csi.style.color = 'var(--good)';
+    }
+    // P0-2: Show day review after checkin
+    const drs = document.getElementById('day-review-section');
+    if (drs) drs.style.display = 'block';
   };
 }
 
@@ -300,6 +386,40 @@ function renderBoard() {
     div.innerHTML = `<div style="font-weight:700;font-size:16px;margin-bottom:4px">${c}</div><div class="stat-num">${avg}%</div><div style="font-size:12px">平均完成率 · ${cd.length}天</div>`;
     container.appendChild(div);
   });
+
+  // P1-1: Calendar heatmap
+  const t = today();
+  const info = getCycleInfo(t);
+  const cycleNum = parseInt(info.cycle.slice(1));
+  const yearStart = new Date(new Date(t + 'T00:00:00+08:00').getFullYear(), 0, 1);
+  const cycleStartDate = new Date(yearStart.getTime() + ((cycleNum - 1) * 10) * 86400000 + 86400000);
+  const cycleDates = [];
+  for (let i = 0; i < 10; i++) {
+    const d = new Date(cycleStartDate.getTime() + i * 86400000);
+    cycleDates.push(d.toISOString().slice(0, 10));
+  }
+  function hColor(rate) {
+    if (rate <= 0) return 'var(--heatmap-0)';
+    if (rate <= 0.3) return 'var(--heatmap-1)';
+    if (rate <= 0.6) return 'var(--heatmap-2)';
+    if (rate <= 0.8) return 'var(--heatmap-3)';
+    return 'var(--heatmap-4)';
+  }
+  container.insertAdjacentHTML('beforeend', `<div class="skeleton-card" style="text-align:left">
+    <div style="font-weight:700;font-size:16px;margin-bottom:12px">📅 ${info.cycle} 日历热力图</div>
+    <div class="heatmap-grid">${cycleDates.map(ds => {
+      const dd = loadDay(ds);
+      const rate = dd ? dd.completion_rate : -1;
+      const color = rate < 0 ? 'var(--heatmap-empty)' : hColor(rate);
+      const pct = rate >= 0 ? Math.round(rate * 100) + '%' : '';
+      return `<div class="heatmap-cell ${ds === t ? 'heatmap-today' : ''}" data-date="${ds}" title="${ds} ${pct}"><div class="heatmap-block" style="background:${color}"></div><div class="heatmap-label">${ds.slice(8)}</div></div>`;
+    }).join('')}</div>
+    <div class="heatmap-legend"><span>少</span><div class="heatmap-block" style="background:var(--heatmap-0)"></div><div class="heatmap-block" style="background:var(--heatmap-1)"></div><div class="heatmap-block" style="background:var(--heatmap-2)"></div><div class="heatmap-block" style="background:var(--heatmap-3)"></div><div class="heatmap-block" style="background:var(--heatmap-4)"></div><span>多</span></div>
+  </div>`);
+  container.querySelectorAll('.heatmap-cell').forEach(cell => {
+    cell.style.cursor = 'pointer';
+    cell.addEventListener('click', () => { checkinDate = cell.dataset.date; switchPage('checkin'); });
+  });
 }
 
 // --- Review Page (Phase 3.1) ---
@@ -308,9 +428,7 @@ function renderReview() {
   const t = today();
   const weekKey = getISOWeek(t);
   const cycleInfo = getCycleInfo(t);
-  let weightSection = '';
-
-  // Get last 7 days data
+// Get last 7 days data
   const weekDays = [];
   for (let i = 0; i < 7; i++) weekDays.push(loadDay(daysAgo(i)));
   const validDays = weekDays.filter(Boolean);
@@ -359,7 +477,8 @@ function renderReview() {
     <div class="trend-chart">${dailyRates.map(d => `<div class="trend-col"><div class="trend-bar" style="height:${Math.max(d.rate, 4)}%"></div><div class="trend-label">${d.label}</div></div>`).join('')}</div>
   </div>`;
 
-  // Weight change this week
+  // Weight change this week (computed before html template)
+  let weightSection = '';
   const weekBodyData = validDays.filter(d => d.bodyData?.weight).map(d => ({ date: d.date, weight: d.bodyData.weight }));
   if (weekBodyData.length >= 2) {
     const first = weekBodyData[0], last = weekBodyData[weekBodyData.length - 1];
@@ -379,6 +498,21 @@ function renderReview() {
     <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">下周最重要的3个改进</label><textarea class="note-input" id="rv-improvements" rows="3" placeholder="1. ...&#10;2. ...&#10;3. ...">${savedReview?.improvements || ''}</textarea></div>
     <button class="submit-btn" id="save-review" style="font-size:14px;padding:12px">保存复盘</button>
   </div>`;
+
+  // P0-2: Weekly day review summary
+  const weekReviews = weekDays.filter(d => d?.dayReview && (d.dayReview.satisfied || d.dayReview.improve || d.dayReview.important));
+  if (weekReviews.length > 0) {
+    html += '<div class="skeleton-card" style="text-align:left"><div style="font-weight:700;font-size:16px;margin-bottom:12px">📖 本周日复盘汇总</div>';
+    weekReviews.forEach(d => {
+      const dr = d.dayReview;
+      html += `<div style="margin-bottom:10px;padding:10px;background:var(--bg);border-radius:10px"><div style="font-size:12px;color:var(--text2);margin-bottom:4px">${d.date}</div>`;
+      if (dr.satisfied) html += `<div style="font-size:13px;margin-bottom:2px">😊 ${dr.satisfied}</div>`;
+      if (dr.improve) html += `<div style="font-size:13px;margin-bottom:2px">🔄 ${dr.improve}</div>`;
+      if (dr.important) html += `<div style="font-size:13px">🎯 ${dr.important}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
 
   // Cycle review
   if (cycleInfo.cycleDay >= 8) {
@@ -766,7 +900,19 @@ function switchSub(sub) {
   if (currentSub === sub) { currentSub = null; document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active')); document.querySelector('.mine-menu').classList.remove('hidden'); return; }
   currentSub = sub;
   document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
-  document.getElementById('sub-' + sub)?.classList.add('active');
+  const subEl = document.getElementById('sub-' + sub);
+  if (subEl) {
+    // P0-3: Ensure back button exists
+    if (!subEl.querySelector('.sub-back-btn')) {
+      const backBtn = document.createElement('button');
+      backBtn.className = 'sub-back-btn';
+      backBtn.textContent = '← 返回';
+      backBtn.style.cssText = 'background:none;border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;margin-bottom:12px;font-family:inherit';
+      backBtn.onclick = () => switchSub(sub);
+      subEl.insertBefore(backBtn, subEl.firstChild);
+    }
+    subEl.classList.add('active');
+  }
   document.querySelector('.mine-menu').classList.add('hidden');
   if (sub === 'stats') renderStats();
   if (sub === 'planning') renderPlanning();
@@ -774,7 +920,24 @@ function switchSub(sub) {
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
-  if ('serviceWorker' in navigator) // disabled for cache fix
+  // P0-5: Service Worker (Network First)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'activated' && navigator.serviceWorker.controller) {
+            const t = document.createElement('div');
+            t.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:101;cursor:pointer;box-shadow:0 4px 16px rgba(108,140,255,.4)';
+            t.textContent = '🔄 发现新版本，点击刷新';
+            t.onclick = () => window.location.reload();
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 10000);
+          }
+        });
+      });
+    }).catch(() => {});
+  }
   renderCheckin();
   document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => switchPage(b.dataset.page)));
   document.querySelectorAll('.mine-btn').forEach(b => b.addEventListener('click', () => switchSub(b.dataset.sub)));
