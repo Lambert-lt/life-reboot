@@ -1365,6 +1365,16 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('清除失败: ' + e.message);
     }
   };
+  document.getElementById('fb-force-pull').onclick = async () => {
+    if (!confirm('从云端拉取所有数据？\n\n云端数据将覆盖本地数据。')) return;
+    try {
+      const count = await FBSync.forcePullFromCloud();
+      showToast('拉取成功，共 ' + count + ' 条数据 🔄');
+      renderCheckin();
+    } catch (e) {
+      showToast('拉取失败: ' + (e.message || e));
+    }
+  };
   document.getElementById('fab-sync')?.addEventListener('click', async () => {
     const cfg = FBSync.getConfig();
     if (!cfg.apiKey || !cfg.projectId) { showToast('请先配置云同步'); return; }
