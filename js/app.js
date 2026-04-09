@@ -430,6 +430,8 @@ function renderReview(reviewTab) {
   const t = today();
   const weekKey = getISOWeek(t);
   const cycleInfo = getCycleInfo(t);
+  let weightSection = '';
+
 // Get last 7 days data
   const weekDays = [];
   for (let i = 0; i < 7; i++) weekDays.push(loadDay(daysAgo(i)));
@@ -479,8 +481,7 @@ function renderReview(reviewTab) {
     <div class="trend-chart">${dailyRates.map(d => `<div class="trend-col"><div class="trend-bar" style="height:${Math.max(d.rate, 4)}%"></div><div class="trend-label">${d.label}</div></div>`).join('')}</div>
   </div>`;
 
-  // Weight change this week (computed before html template)
-  let weightSection = '';
+  // Weight change this week
   const weekBodyData = validDays.filter(d => d.bodyData?.weight).map(d => ({ date: d.date, weight: d.bodyData.weight }));
   if (weekBodyData.length >= 2) {
     const first = weekBodyData[0], last = weekBodyData[weekBodyData.length - 1];
