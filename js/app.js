@@ -1342,6 +1342,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fb-sync-btn').disabled = false;
     renderCheckin();
   };
+  document.getElementById('fb-clear-cache').onclick = async () => {
+    if (!confirm('清除同步缓存？\n\n这会清除 Firebase 离线缓存并强制从云端重新拉取数据，不会删除本地打卡记录。')) return;
+    try {
+      // Clear IndexedDB (Firestore persistence cache)
+      const dbs = await indexedDB.databases();
+      for (const dbInfo of dbs) {
+        if (dbInfo.name && dbInfo.name.includes('firestore')) {
+          indexedDB.deleteDatabase(dbInfo.name);
+        }
+      }
+      // Also clear localStorage sync timestamps
+      document.querySelectorAll('[id$="_ts"]').forEach(el => {});
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.endsWith('_ts')) localStorage.removeItem(k);
+      }
+      showToast('缓存已清除，将重新拉取云端数据 🔄');
+      // Re-init sync
+      setTimeout(() => { location.reload(); }, 1000);
+    } catch (e) {
+      showToast('清除失败: ' + e.message);
+    }
+  };
   document.getElementById('fab-sync')?.addEventListener('click', async () => {
     const cfg = FBSync.getConfig();
     if (!cfg.apiKey || !cfg.projectId) { showToast('请先配置云同步'); return; }
