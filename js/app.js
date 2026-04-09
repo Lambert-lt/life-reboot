@@ -264,7 +264,7 @@ function renderCheckin() {
     const dayData = { date: t, cycle: info.cycle, cycle_day: info.cycleDay, dimensions: dims, completion_rate: Math.round(rate * 100) / 100 };
     if (Object.keys(bodyData).length) dayData.bodyData = bodyData;
     saveDay(t, dayData);
-    FBSync.uploadSingle(dayData).catch(e => console.error('Auto sync failed:', e));
+    FBSync.syncItem('lr_' + t);
     showToast(t === today() ? '打卡成功 ✅' : '补卡成功 ✅');
   };
 }
@@ -414,7 +414,7 @@ function renderReview() {
       painpoints: document.getElementById('rv-painpoints')?.value || '',
       improvements: document.getElementById('rv-improvements')?.value || '',
     }));
-    FBSync.uploadSingle(loadDay(today())).catch(e => console.error('Auto sync failed:', e));
+    FBSync.syncItem('lr_review_' + weekKey);
     showToast('复盘已保存 ✅');
   };
   const saveCycleBtn = document.getElementById('save-cycle-review');
@@ -422,7 +422,7 @@ function renderReview() {
     localStorage.setItem('lr_review_cycle_' + cycleInfo.cycle, JSON.stringify({
       summary: document.getElementById('rv-cycle')?.value || '',
     }));
-    FBSync.uploadSingle(loadDay(today())).catch(e => console.error('Auto sync failed:', e));
+    FBSync.syncItem('lr_review_cycle_' + cycleInfo.cycle);
     showToast('周期复盘已保存 ✅');
   };
 }
@@ -553,8 +553,8 @@ function renderPlanning(cycleOverride, viewMode) {
     const theme = document.getElementById('plan-theme')?.value.trim() || '';
     const plan = { focusDims: checkedDims, goals, theme };
     localStorage.setItem('lr_plan_' + activeCycle, JSON.stringify(plan));
+    FBSync.syncItem('lr_plan_' + activeCycle);
     showToast(truncated ? '已截取前3个目标 ✅' : '规划已保存 ✅');
-    FBSync.updateSyncStatus();
   };
 }
 
@@ -800,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       showToast(`已清除 ${count} 条数据`);
+      FBSync.autoSync();
       renderCheckin();
     };
   });
@@ -822,6 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultEl.style.display = 'block';
         resultEl.textContent = `✅ 导入了 ${count} 条记录`;
         showToast(`导入了 ${count} 条记录`);
+        FBSync.autoSync();
       } catch (err) { showToast('导入失败：JSON 格式错误'); }
     };
     reader.readAsText(file);
@@ -916,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCheckin();
   });
 
-  FBSync.updateSyncStatus();
+  FBSync.init();
   document.getElementById('checkin-date').addEventListener('change', (e) => {
     checkinDate = e.target.value || null;
     renderCheckin();
