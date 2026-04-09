@@ -18,7 +18,6 @@
       <span class="sync-status" id="sync-status" title="同步状态"></span>
     </div>
     <div class="sub" id="cycle-info"></div>
-    <div id="checkin-status" style="font-size:12px;font-weight:600;margin-top:2px"></div>
   </div>
 
   <!-- Page: Checkin -->
@@ -35,15 +34,6 @@
     <div class="submit-section">
       <button class="submit-btn" id="submit-btn">提交今日打卡</button>
       <button class="sync-fab" id="fab-sync" title="同步">☁️</button>
-    </div>
-    <div id="day-review-section" style="display:none;margin-top:20px">
-      <div class="skeleton-card" style="text-align:left">
-        <div style="font-weight:700;font-size:16px;margin-bottom:12px">📝 日复盘</div>
-        <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">1. 今天最满意的一件事是什么？</label><input class="note-input" id="dr-satisfied" placeholder="记录今天的亮点..." style="margin-top:0"></div>
-        <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">2. 今天最想改进的是什么？</label><input class="note-input" id="dr-improve" placeholder="记录可以更好的地方..." style="margin-top:0"></div>
-        <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">3. 明天最重要的一件事是什么？</label><input class="note-input" id="dr-important" placeholder="明天最优先的事..." style="margin-top:0"></div>
-        <button class="submit-btn" id="save-day-review" style="font-size:14px;padding:12px">保存日复盘</button>
-      </div>
     </div>
   </div>
 
@@ -169,7 +159,7 @@
   </nav>
 
   <div class="toast" id="toast"></div>
-  <script src="js/firebase-sync.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/firebase-sync.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>
