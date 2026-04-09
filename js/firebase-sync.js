@@ -77,7 +77,7 @@ const FBSync = (() => {
       }
       db = firebase.firestore();
       // Enable offline persistence
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('[Firebase] Persistence failed:', err));
       initialized = true;
       return true;
     } catch (e) {
@@ -132,9 +132,14 @@ const FBSync = (() => {
     const now = Date.now();
     const result = {};
 
-    // Day data (lr_20*)
+    // Snapshot all keys first to avoid mutation during iteration
+    const allKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+      allKeys.push(localStorage.key(i));
+    }
+
+    // Day data (lr_20*)
+    for (const k of allKeys) {
       if (!k.startsWith('lr_20')) continue;
       try {
         const data = JSON.parse(localStorage.getItem(k));
@@ -144,8 +149,7 @@ const FBSync = (() => {
     }
 
     // Plan data (lr_plan_P*)
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    for (const k of allKeys) {
       const m = k.match(/^lr_plan_(P\d+)$/);
       if (!m) continue;
       try {
@@ -155,8 +159,7 @@ const FBSync = (() => {
     }
 
     // Weekly review (lr_review_W*)
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    for (const k of allKeys) {
       const m = k.match(/^lr_review_(W\d+-\d+)$/);
       if (!m) continue;
       try {
@@ -166,8 +169,7 @@ const FBSync = (() => {
     }
 
     // Cycle review (lr_review_cycle_P*)
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    for (const k of allKeys) {
       const m = k.match(/^lr_review_cycle_(P\d+)$/);
       if (!m) continue;
       try {
@@ -313,13 +315,17 @@ const FBSync = (() => {
   }
 
   // --- Real-time listener (onSnapshot) ---
+  let _listening = false;
+
   function startListener() {
     if (!initFB()) return;
+    if (_listening) return;
     stopListener(); // clean up existing
 
     const uid = getUserId();
     const docRef = db.collection('lifeReboot').doc(uid + '_sync');
 
+    _listening = true;
     snapshotUnsub = docRef.onSnapshot(
       (doc) => {
         if (!doc.exists) return;
@@ -360,6 +366,7 @@ const FBSync = (() => {
       snapshotUnsub();
       snapshotUnsub = null;
     }
+    _listening = false;
   }
 
   // --- Network recovery ---
