@@ -130,6 +130,7 @@
         </div>
         <button class="submit-btn" id="fb-sync-btn" style="font-size:14px;padding:12px">☁️ 手动同步</button>
         <div id="fb-sync-progress" style="margin-top:8px;font-size:13px;color:var(--text2);display:none"></div>
+        <div id="sync-connection-status" style="margin-top:12px;padding:8px 12px;border-radius:8px;font-size:13px;display:none"></div>
       </div>
     </div>
     <div id="sub-about" class="sub-page">
@@ -138,6 +139,13 @@
         <div style="color:var(--text2);font-size:13px">v2.0 · Phase 3+4</div>
         <div style="color:var(--text2);font-size:13px;margin-top:8px">基于易命二十九术的每日打卡系统</div>
         <div style="color:var(--text2);font-size:13px;margin-top:4px">每10天一个周期，8维度全方位成长</div>
+      </div>
+      <div class="skeleton-card" style="margin-top:12px">
+        <div style="font-size:13px;color:var(--text2)">👤 用户ID</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <code id="about-user-id" style="flex:1;font-size:12px;word-break:break-all;color:var(--text)"></code>
+          <button class="export-btn" id="about-copy-uid" style="padding:4px 10px;font-size:12px">复制</button>
+        </div>
       </div>
     </div>
   </div>
@@ -151,7 +159,7 @@
   </nav>
 
   <div class="toast" id="toast"></div>
-  <script src="js/firebase-sync.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/firebase-sync.js?v=11"></script>
+  <script src="js/app.js?v=11"></script>
 </body>
 </html>

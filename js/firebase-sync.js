@@ -21,13 +21,33 @@ const FBSync = (() => {
     localStorage.setItem('firebase_config', JSON.stringify(cfg));
   }
 
+  const OLD_HARDCODED_ID = 'u_1775548112859_cxd269';
+  const STORAGE_KEY = 'lr_user_id';
+
+  function generateUserId() {
+    const ts = Date.now();
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let rand = '';
+    for (let i = 0; i < 4; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+    return 'u_' + ts + '_' + rand;
+  }
+
   function getUserId() {
-    return localStorage.getItem('fb_user_id') || 'u_1775548112859_cxd269';
+    let uid = localStorage.getItem(STORAGE_KEY);
+    if (!uid) {
+      uid = localStorage.getItem('fb_user_id') || generateUserId();
+      localStorage.setItem(STORAGE_KEY, uid);
+    }
+    return uid;
+  }
+
+  function getOldUserId() {
+    return localStorage.getItem('fb_user_id') || OLD_HARDCODED_ID;
   }
 
   function setUserId(uid) {
     if (uid && uid.trim()) {
-      localStorage.setItem('fb_user_id', uid.trim());
+      localStorage.setItem(STORAGE_KEY, uid.trim());
     }
   }
 
@@ -134,8 +154,19 @@ const FBSync = (() => {
     const uid = getUserId();
     let cloudDays = [];
     try {
-      const snap = await db.collection('lifeReboot').where('userId', '==', uid).limit(1000).get();
+      let snap = await db.collection('lifeReboot').where('userId', '==', uid).limit(1000).get();
       snap.forEach(doc => cloudDays.push(docToDay(doc)));
+      // Migration: if no data under new ID, try old hardcoded ID
+      if (cloudDays.length === 0 && uid !== OLD_HARDCODED_ID) {
+        const oldSnap = await db.collection('lifeReboot').where('userId', '==', OLD_HARDCODED_ID).limit(1000).get();
+        let oldDays = [];
+        oldSnap.forEach(doc => oldDays.push(docToDay(doc)));
+        if (oldDays.length > 0) {
+          progressCb(`🔄 迁移旧数据 (${oldDays.length} 条)...`);
+          for (const d of oldDays) { d.userId = uid; await uploadDay(d); }
+          cloudDays = oldDays;
+        }
+      }
     } catch (e) { progressCb('❌ 拉取失败: ' + e.message); console.error('sync fetch error:', e); updateStatusUI('⚠️', '同步失败'); return; }
 
     progressCb(`🔄 云端 ${cloudDays.length} 条，开始合并...`);

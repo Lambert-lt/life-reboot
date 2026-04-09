@@ -308,6 +308,7 @@ function renderReview() {
   const t = today();
   const weekKey = getISOWeek(t);
   const cycleInfo = getCycleInfo(t);
+  let weightSection = '';
 
   // Get last 7 days data
   const weekDays = [];
@@ -360,7 +361,6 @@ function renderReview() {
 
   // Weight change this week
   const weekBodyData = validDays.filter(d => d.bodyData?.weight).map(d => ({ date: d.date, weight: d.bodyData.weight }));
-  let weightSection = '';
   if (weekBodyData.length >= 2) {
     const first = weekBodyData[0], last = weekBodyData[weekBodyData.length - 1];
     const diff = (last.weight - first.weight).toFixed(1);
@@ -428,20 +428,32 @@ function renderReview() {
 }
 
 // --- Planning (Phase 3.2) ---
-function renderPlanning() {
+function renderPlanning(cycleOverride, viewMode) {
   const container = document.getElementById('planning-content');
   const t = today();
   const info = getCycleInfo(t);
-  const saved = JSON.parse(localStorage.getItem('lr_plan_' + info.cycle) || 'null');
-  // Backward compat: old format has no focusDims
+  const currentCycle = info.cycle;
+  const activeCycle = cycleOverride || currentCycle;
+
+  if (viewMode === 'list') {
+    return renderCycleList(container, currentCycle);
+  }
+
+  const saved = JSON.parse(localStorage.getItem('lr_plan_' + activeCycle) || 'null');
   const isOld = saved && !Array.isArray(saved.focusDims);
   let focusDims = isOld ? DIMS.map(d => d.key) : (saved?.focusDims || []);
   const goals = saved?.goals || (isOld ? (() => { const g = {}; DIMS.forEach(d => { if (saved?.[d.key]) g[d.key] = saved[d.key]; }); return g; })() : {});
-
   const theme = saved?.theme || '';
+  const isCurrent = activeCycle === currentCycle;
+  const backBtn = cycleOverride ? `<button id="plan-back-list" style="background:none;border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;margin-bottom:12px">← 返回列表</button>` : '';
+
   container.innerHTML = `<div class="skeleton-card" style="text-align:left">
-    <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 周期规划 · ${info.cycle}</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:4px">第${info.cycleDay}/10天</div>
+    ${backBtn}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-weight:700;font-size:16px">🎯 周期规划 · ${activeCycle}${isCurrent ? ' <span style="font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px">当前</span>' : ''}</div>
+      <button id="plan-show-list" style="background:none;border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer">📋 查看所有周期</button>
+    </div>
+    ${isCurrent ? `<div style="font-size:13px;color:var(--text2);margin-bottom:4px">第${info.cycleDay}/10天</div>` : ''}
     <div style="font-size:13px;color:var(--accent);margin-bottom:12px">选择最多3个重点维度，为每个维度设定目标</div>
     <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px">🏷️ 周期主题</label><input class="note-input" id="plan-theme" value="${theme}" placeholder="给这个周期起个名字，如「习惯建立期」" style="margin-top:0"></div>
     ${DIMS.map(d => {
@@ -464,10 +476,15 @@ function renderPlanning() {
     <button class="submit-btn" id="save-plan" style="font-size:14px;padding:12px">保存规划</button>
   </div>`;
 
+  const showListBtn = document.getElementById('plan-show-list');
+  if (showListBtn) showListBtn.onclick = () => renderPlanning(null, 'list');
+  const backBtn2 = document.getElementById('plan-back-list');
+  if (backBtn2) backBtn2.onclick = () => renderPlanning(null, 'list');
+
   // Template buttons
   container.querySelectorAll('.template-btn').forEach(btn => {
     btn.addEventListener('click', () => {
- const dim = btn.dataset.dim;
+      const dim = btn.dataset.dim;
       const idx = parseInt(btn.dataset.tplIdx);
       const ta = container.querySelector(`.plan-goal[data-dim="${dim}"]`);
       if (ta) {
@@ -490,7 +507,6 @@ function renderPlanning() {
       const dim = cb.dataset.dim;
       if (cb.checked) {
         row.querySelector('label').style.borderColor = 'var(--accent)';
-        // Add template buttons
         const dimTemplates = TEMPLATES[dim] || [];
         const tplDiv = document.createElement('div');
         tplDiv.className = 'template-btns';
@@ -536,10 +552,51 @@ function renderPlanning() {
     });
     const theme = document.getElementById('plan-theme')?.value.trim() || '';
     const plan = { focusDims: checkedDims, goals, theme };
-    localStorage.setItem('lr_plan_' + info.cycle, JSON.stringify(plan));
+    localStorage.setItem('lr_plan_' + activeCycle, JSON.stringify(plan));
     showToast(truncated ? '已截取前3个目标 ✅' : '规划已保存 ✅');
     FBSync.updateSyncStatus();
   };
+}
+
+function renderCycleList(container, currentCycle) {
+  const cycles = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    const m = key.match(/^lr_plan_(P\d+)$/);
+    if (m) {
+      const data = JSON.parse(localStorage.getItem(key) || '{}');
+      cycles.push({ cycle: m[1], theme: data.theme || '', focusDims: data.focusDims || [] });
+    }
+  }
+  cycles.sort((a, b) => {
+    const na = parseInt(a.cycle.slice(1)), nb = parseInt(b.cycle.slice(1));
+    return na - nb;
+  });
+
+  container.innerHTML = `<div class="skeleton-card" style="text-align:left">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:700;font-size:16px">📋 所有周期规划</div>
+    </div>
+    ${cycles.length === 0 ? '<div style="font-size:13px;color:var(--text2);text-align:center;padding:20px">暂无周期规划</div>' :
+    cycles.map(c => {
+      const isCurrent = c.cycle === currentCycle;
+      const dimEmojis = c.focusDims.map(k => DIMS.find(d => d.key === k)?.emoji || '').join(' ');
+      return `<div class="cycle-list-card" data-cycle="${c.cycle}" style="padding:12px;background:var(--card-bg);border-radius:12px;border:2px solid ${isCurrent ? 'var(--accent)' : 'var(--border)'};cursor:pointer;margin-bottom:8px;transition:border-color .2s">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;font-size:15px">${c.cycle}</span>
+          ${isCurrent ? '<span style="font-size:11px;background:var(--accent);color:#000;padding:2px 8px;border-radius:10px">当前</span>' : ''}
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px">${c.theme || '未设置主题'}</div>
+        <div style="font-size:13px;margin-top:4px">${dimEmojis || '<span style="color:var(--text2)">未选择维度</span>'} <span style="color:var(--text2);font-size:11px">(${c.focusDims.length}个维度)</span></div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  container.querySelectorAll('.cycle-list-card').forEach(card => {
+    card.addEventListener('click', () => {
+      renderPlanning(card.dataset.cycle, 'detail');
+    });
+  });
 }
 
 // --- Weight Chart Helper ---
@@ -790,7 +847,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fb-user-id').value = newUid;
     document.getElementById('fb-user-id-edit').value = '';
     showToast('用户 ID 已切换 ✅');
+    document.getElementById('about-user-id') && (document.getElementById('about-user-id').textContent = newUid);
   };
+  // About page user ID
+  document.getElementById('about-user-id').textContent = FBSync.getUserId();
+  document.getElementById('about-copy-uid').onclick = () => {
+    navigator.clipboard.writeText(FBSync.getUserId()).then(() => showToast('已复制 ✅'));
+  };
+  // Sync page connection status
+  function updateSyncPageStatus() {
+    const el = document.getElementById('sync-connection-status');
+    if (!el) return;
+    const cfg = FBSync.getConfig();
+    if (!cfg.apiKey || !cfg.projectId) {
+      el.style.display = 'block';
+      el.style.background = 'rgba(255,100,100,0.1)';
+      el.style.color = 'var(--none)';
+      el.innerHTML = '❌ 未连接';
+      return;
+    }
+    if (FBSync.initFB()) {
+      el.style.display = 'block';
+      el.style.background = 'rgba(100,200,100,0.1)';
+      el.style.color = 'var(--done)';
+      el.innerHTML = '✅ 已连接';
+    } else {
+      el.style.display = 'block';
+      el.style.background = 'rgba(255,200,100,0.1)';
+      el.style.color = 'var(--warn)';
+      el.innerHTML = '⚠️ 连接异常';
+    }
+  }
+  updateSyncPageStatus();
+
   document.getElementById('fb-save').onclick = () => {
     FBSync.saveConfig({
       apiKey: document.getElementById('fb-api-key').value.trim(),
@@ -833,3 +922,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCheckin();
   });
 });
+
+// --- Weight Loss Plan Import ---
+(function initWeightLossPlan() {
+  const plans = [
+    {cycle:'P11',theme:'启动期：微习惯+16:8断食',focusDims:['health','living','mind'],goals:{health:'每天1个俯卧撑（微习惯启动）\n每天八段锦1个动作\n早上8:00前喝第一杯水',living:'开始16:8断食（12:00-20:00进食）\n午餐7分饱，主食减半\n晚餐轻食，19:00前结束',mind:'每坐1小时站起来1次\n睡前做1个深呼吸'}},
+    {cycle:'P12',theme:'加速期：运动升级+饮食收紧',focusDims:['health','living','mind'],goals:{health:'午休八段锦3天+俯卧撑深蹲2天\n每天喝水2000ml\n体重记录（每天早起空腹）',living:'继续16:8断食\n午餐少油少盐，自己做2次饭\n晚餐无主食（蔬菜+蛋白质）\n戒掉零食和含糖饮料',mind:'睡前肩颈拉伸10分钟\n保证7小时睡眠'}},
+    {cycle:'P13',theme:'攻坚期：HIIT+严格饮食',focusDims:['health','living'],goals:{health:'午休八段锦2天+HIIT燃脂2天+力量1天\n体重+腰围记录\n每天8000步',living:'继续16:8断食\n午餐主食减到1/3\n晚餐仅蔬菜+蛋白质\n自己做3次饭\n每天吃1份水果'}},
+    {cycle:'P14',theme:'突破期：加量+断食强化',focusDims:['health','living','mind'],goals:{health:'午休HIIT 3天+八段锦1天+力量1天\n体重+腰围记录\n每天10000步\n周末散步或额外运动30分钟',living:'继续16:8断食\n午餐控量\n晚餐蔬菜为主\n自己做3次饭\n不碰油炸和勾芡',mind:'冥想5分钟\n写情绪日记\n精力管理'}},
+    {cycle:'P15',theme:'冲刺期：极限减脂',focusDims:['health','living'],goals:{health:'午休HIIT 3天+力量2天\n体重+腰围记录\n每天12000步\n周末额外运动30分钟',living:'继续16:8断食\n午餐正常吃但7分饱\n晚餐蔬菜+蛋白质（无主食）\n自己做4次饭\n零零食零饮料'}},
+    {cycle:'P16',theme:'收官期：巩固+复盘',focusDims:['health','living','mind'],goals:{health:'午休运动4天（保持节奏）\n体重+腰围记录\n每天10000步',living:'保持健康饮食习惯\n恢复正常午餐量\n晚餐可少量主食',mind:'复盘8周减肥历程\n总结适合自己的饮食和运动节奏\n设定下一个目标'}}
+  ];
+  // Clear old P17-P20 if exist
+  ['P17','P18','P19','P20'].forEach(p => localStorage.removeItem('lr_plan_' + p));
+  let count = 0;
+  plans.forEach(p => {
+    const key = 'lr_plan_' + p.cycle;
+    // Always update to latest version
+    localStorage.setItem(key, JSON.stringify(p));
+    count++;
+  });
+  if (count > 0) console.log('Imported ' + count + ' cycle plans (8-week version)');
+})();
